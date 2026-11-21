@@ -158,11 +158,13 @@
       const series = [];
       for (let h = 0; h <= days * 24; h += step) series.push([h, lonOf(tn, new Date(from.getTime() + h * 3600e3))]);
       for (const [nn, nl] of Object.entries(nat)) for (const [a, name] of ASPECTS) {
-        let prev = null;
-        for (const [h, l] of series) {
-          const v = Math.abs(sdiff(l, nl)) - a;
-          if (prev && Math.sign(prev[1]) !== Math.sign(v) && Math.abs(v) < 2) res.push({ date: new Date(from.getTime() + h * 3600e3), t: tn, aspect: name, n: nn });
-          prev = [h, v];
+        for (const tgt of (a === 0 || a === 180) ? [nl + a] : [nl + a, nl - a]) {
+          let prev = null;
+          for (const [h, l] of series) {
+            const v = sdiff(l, tgt);
+            if (prev !== null && Math.sign(prev) !== Math.sign(v) && Math.abs(v) < 5) res.push({ date: new Date(from.getTime() + h * 3600e3), t: tn, aspect: name, n: nn });
+            prev = v;
+          }
         }
       }
     }

@@ -66,9 +66,11 @@
     for (let mi = 0; mi <= 1440; mi += 10) {
       const t = new Date(start.getTime() + mi * 60e3), ml = E.lonOf("Moon", t);
       for (const [k, l] of Object.entries(natPts)) for (const [a, n] of ASPS) {
-        const v = Math.abs(E.sdiff(ml, l)) - a, id = k + a;
-        if (prev[id] != null && Math.sign(prev[id]) !== Math.sign(v) && Math.abs(v) < 3) contacts.push({ min: mi, txt: `Moon ${n} your ${nm(k)}`, hard: a === 90 || a === 180 });
-        prev[id] = v;
+        for (const tg of (a === 0 || a === 180) ? [l + a] : [l + a, l - a]) {
+          const v = E.sdiff(ml, tg), id = k + a + "_" + tg;
+          if (prev[id] != null && Math.sign(prev[id]) !== Math.sign(v) && Math.abs(v) < 5) contacts.push({ min: mi, txt: `Moon ${n} your ${nm(k)}`, hard: a === 90 || a === 180 });
+          prev[id] = v;
+        }
       }
       for (const k of ["Saturn", "Mars", "Jupiter", "Venus", "Neptune", "Pluto", "Uranus"]) {
         const v = E.sdiff(ml, E.lonOf(k, t)), id = "t" + k;
@@ -77,6 +79,7 @@
       }
     }
     const upcoming = E.upcoming(natal, start, 12).filter(u => u.date > start);
+    contacts.sort((a, b) => a.min - b.min);
     // ---------- signals & themes ----------
     const sig = [];
     const strong = asp.filter(a => a.t !== "Moon").slice(0, 3);
