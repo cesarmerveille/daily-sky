@@ -243,6 +243,21 @@
   function eot(date) { const N = (date - Date.UTC(date.getUTCFullYear(), 0, 0)) / 86400e3; const B = 2 * Math.PI * (N - 81) / 364; return 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B); }
   // ---------- Biorhythm ----------
   function biorhythm(birthYMD, ymd) { const n = daysFromEpoch(...ymd) - daysFromEpoch(...birthYMD); return { days: n, physical: Math.sin(2 * Math.PI * n / 23), emotional: Math.sin(2 * Math.PI * n / 28), intellectual: Math.sin(2 * Math.PI * n / 33) }; }
+  // ---------- Planetary hours (Chaldean order, sunrise to sunrise) ----------
+  function planetaryHours(y, m, d, tz, lat, lon) {
+    const obs = new A.Observer(lat, lon, 0);
+    const midnight = zoned(y, m, d, 0, 0, tz);
+    const sr = A.SearchRiseSet(A.Body.Sun, obs, +1, A.MakeTime(midnight), 1);
+    if (!sr) return null;
+    const ss = A.SearchRiseSet(A.Body.Sun, obs, -1, sr, 1), sr2 = A.SearchRiseSet(A.Body.Sun, obs, +1, ss, 1);
+    const CH = ["Saturn", "Jupiter", "Mars", "Sun", "Venus", "Mercury", "Moon"], WD = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn"];
+    const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+    const ruler = WD[wd], s0 = CH.indexOf(ruler);
+    const a = sr.date.getTime(), b = ss.date.getTime(), c = sr2.date.getTime(), dl = (b - a) / 12, nl = (c - b) / 12;
+    const hours = [];
+    for (let i = 0; i < 24; i++) { const st = i < 12 ? a + i * dl : b + (i - 12) * nl; hours.push({ n: i + 1, start: new Date(st), end: new Date(st + (i < 12 ? dl : nl)), planet: CH[(s0 + i) % 7], day: i < 12 }); }
+    return { ruler, sunrise: sr.date, sunset: ss.date, hours };
+  }
   // ---------- helpers ----------
   function zoned(y, m, d, hh, mm, tz) { // local wall time in IANA tz -> Date
     let guess = Date.UTC(y, m - 1, d, hh, mm);
@@ -254,5 +269,5 @@
     return new Date(guess);
   }
   function fmtLon(l) { const s = Math.floor(norm(l) / 30), x = norm(l) % 30; return `${Math.floor(x)}°${String(Math.floor((x % 1) * 60)).padStart(2, "0")}′ ${SIGNS[s]}`; }
-  return { lonOf, positions, houses, houseOf, gateOf, activations, gatesOf, channelsOf, definedCenters, centerOf, designDate, hdType, natalChart, transitAspects, upcoming, moonPhase, moonGateTimeline, numerology, baziFull, dayPillarIndex, pillar, tenGod, branchRelation, eot, biorhythm, zoned, fmtLon, norm, sdiff, SIGNS, CENTERS, CHANNELS, STEM_EL, STEMS };
+  return { lonOf, positions, houses, houseOf, gateOf, activations, gatesOf, channelsOf, definedCenters, centerOf, designDate, hdType, natalChart, transitAspects, upcoming, moonPhase, moonGateTimeline, numerology, baziFull, dayPillarIndex, pillar, tenGod, branchRelation, eot, biorhythm, planetaryHours, zoned, fmtLon, norm, sdiff, SIGNS, CENTERS, CHANNELS, STEM_EL, STEMS };
 });

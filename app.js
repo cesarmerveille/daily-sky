@@ -35,6 +35,7 @@
     natal.ymd = [y, m, d];
   }
 
+  function homeLoc() { const c = CITIES.find(c => c[3] === profile.tz); return c ? { lat: c[1], lon: c[2], name: c[0] } : { lat: +profile.lat, lon: +profile.lon, name: "your birthplace" }; }
   // ---------- day model ----------
   function dayModel(y, m, d) {
     const tz = profile.tz;
@@ -100,7 +101,8 @@
     const ranked = Object.entries(score).sort((a, b) => b[1] - a[1]);
     const systemsPer = t => [...new Set(sig.filter(s => s.theme === t).map(s => s.sys))];
     const cautions = sig.filter(s => s.hard && s.caution);
-    return { y, m, d, noon, start, end, tr, asp, trAct, completed, transitOnly, newCenters, dayDef, num, bz, god, rel, moon, moonTl, bio, contacts, upcoming, sig, ranked, systemsPer, cautions };
+    const home = homeLoc(); const ph = E.planetaryHours(y, m, d, tz, home.lat, home.lon);
+    return { home, ph, y, m, d, noon, start, end, tr, asp, trAct, completed, transitOnly, newCenters, dayDef, num, bz, god, rel, moon, moonTl, bio, contacts, upcoming, sig, ranked, systemsPer, cautions };
   }
 
   // ---------- render helpers ----------
@@ -166,6 +168,21 @@ ${profile.link && isToday ? `<a class="cta" href="${esc(profile.link)}" target="
     <div class="box agree"><h3>Agreement</h3><p>${agreeN >= 2 ? `${M.systemsPer(M.ranked[0][0]).join(", ")} all land on ${esc(T1.label.toLowerCase())}. Treat it as the theme of the day.` : "No two systems agree strongly. Treat today as open."}</p></div>
     <div class="box clash"><h3>Tension</h3><p>${(() => { const act = ["Action", "Change", "Resources"].includes(M.ranked[0]?.[0]); if (act && ["Generator", "Projector", "Reflector"].includes(natal.type)) return `The sky pushes toward ${esc(T1.label.toLowerCase())}, while your ${natal.type} strategy says <b>${typeInfo[0].toLowerCase()}</b>. Don't start new things; respond fully to what comes.`; if (M.cautions.length) return `${esc(M.cautions[0].txt)} pulls against the main theme. Go ahead, at a pace your body agrees with.`; return "Little conflict between the systems today."; })()}</p></div>
   </div>
+</section>
+<section class="panel">
+  <div class="head"><h2>Hermetic key</h2><span class="eyebrow">after Manly P. Hall</span></div>
+  ${(() => { const H = L.hermetic; const r = M.ph ? M.ph.ruler : H.weekdayRuler[new Date(Date.UTC(M.y, M.m - 1, M.d)).getUTCDay()]; const sp = H.sephirah[r]; const dom = (M.asp.find(a => a.t !== "Moon") || {}).t; const dsp = dom && H.sephirah[dom]; const py = H.pythag[M.num.personalDay] || H.pythag[9];
+    const fmt = d => new Intl.DateTimeFormat("en-GB", { timeZone: profile.tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(d);
+    const now = Date.now();
+    return `<div class="grid3" style="gap:14px">
+      <div><p class="eyebrow">Day of ${r}</p><h3 style="margin-top:4px">${sp[0]} · ${sp[1]}</h3><p class="note" style="margin-top:4px">${H.sephMeaning[sp[0]]}. Metal: ${H.metal[r]}.</p></div>
+      <div><p class="eyebrow">${py[0]} · personal day ${M.num.personalDay}</p><p style="margin-top:4px">${py[1]}</p></div>
+      <div><p class="eyebrow">Strongest transit: ${dom || "—"}</p>${dsp ? `<h3 style="margin-top:4px">${dsp[0]} · ${dsp[1]}</h3><p class="note" style="margin-top:4px">${dom === r ? "The same sphere as the day: a doubled emphasis." : `${sp[0]} and ${dsp[0]} meet today: ${H.sephMeaning[sp[0]].split(",")[0]} and ${H.sephMeaning[dsp[0]].split(",")[0]}.`}</p>` : ""}</div>
+    </div>
+    ${M.ph ? `${(() => { const c = M.ph.hours.find(h => now >= h.start && now < h.end); return c ? `<p><b>Now: hour of ${c.planet}</b> until ${fmt(c.end)}. <span class="note">${H.hourUse[c.planet]}.</span></p>` : ""; })()}
+    <div class="hours">${M.ph.hours.filter(h => h.day || h.n <= 18).map(h => { const cur = now >= h.start && now < h.end; return `<div class="hr${cur ? " cur" : ""}${h.day ? "" : " night"}"><span class="t">${fmt(h.start)}</span><span>${glyph(h.planet)} ${h.planet}</span></div>`; }).join("")}</div>
+    <p class="note">Planetary hours divide daylight and night into twelve unequal parts each, starting at sunrise in ${esc(M.home.name)} (${fmt(M.ph.sunrise)}) and running in the Chaldean order.</p>` : ""}`; })()}
+  <p class="note">Symbolic, not historical. Hall's 1928 book is a synthesis of Pythagorean, Kabbalistic and alchemical lore; the pairings are traditional, and many of his historical claims don't hold up.</p>
 </section>
 <section class="grid2">
   <div class="panel"><div class="head"><h2>Your sky</h2><span class="eyebrow">inner: birth · outer: this day</span></div>

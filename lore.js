@@ -7,6 +7,25 @@ const LORE = {
   hexTri: "QQ KK CZ GC CQ QC KC CK XQ QD KQ QK QL LQ KG ZK DZ GX KD XK LZ GL GK KZ QZ GQ GZ DX CC LL DG ZX QG ZQ LK KL XL LD CG ZC GD XZ DQ QX DK KX DC CX DL LX ZZ GG XG ZD ZL LG XX DD XC CD XD ZG CL LC".split(" "),
   trigrams: { Q: [1, 1, 1], K: [0, 0, 0], Z: [1, 0, 0], C: [0, 1, 0], G: [0, 0, 1], X: [0, 1, 1], L: [1, 0, 1], D: [1, 1, 0] },
   trigramNames: { Q: "Heaven", K: "Earth", Z: "Thunder", C: "Water", G: "Mountain", X: "Wind", L: "Fire", D: "Lake" },
+  hermetic: {
+    weekdayRuler: ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn"],
+    chaldean: ["Saturn", "Jupiter", "Mars", "Sun", "Venus", "Mercury", "Moon"],
+    sephirah: { Saturn: ["Binah", "Understanding"], Jupiter: ["Chesed", "Mercy"], Mars: ["Geburah", "Severity"], Sun: ["Tiphareth", "Beauty"], Venus: ["Netzach", "Victory"], Mercury: ["Hod", "Splendour"], Moon: ["Yesod", "Foundation"] },
+    sephMeaning: { Binah: "form, limit and the great sea that gives shape", Chesed: "expansion, generosity, the ordering benevolence", Geburah: "strength, judgement, the cutting away", Tiphareth: "the harmonising heart of the Tree", Netzach: "desire, art and natural feeling", Hod: "intellect, language and ritual", Yesod: "the dream-foundation, imagination and the tides" },
+    metal: { Saturn: "lead", Jupiter: "tin", Mars: "iron", Sun: "gold", Venus: "copper", Mercury: "quicksilver", Moon: "silver" },
+    hourUse: { Saturn: "endings, boundaries, serious work", Jupiter: "generosity, asking, growth", Mars: "courage, effort, cutting away", Sun: "visibility and vitality", Venus: "love, art, pleasure, making peace", Mercury: "study, writing, trade, messages", Moon: "home, rest, dreams" },
+    pythag: {
+      1: ["Monad", "The source. The Pythagoreans called it the germ of all numbers and a symbol of wisdom."],
+      2: ["Duad", "The first departure from unity, called audacity and opinion: the root of polarity and of relationship."],
+      3: ["Triad", "The first complete number, with beginning, middle and end; tied to wisdom, friendship and harmony."],
+      4: ["Tetrad", "The root of all things and the fountain of nature: the four elements, stability, the square."],
+      5: ["Pentad", "The marriage of the first even and first odd numbers: union of opposites, nature, the quintessence."],
+      6: ["Hexad", "The form of forms: the creation of the world, balance, the perfection of parts."],
+      7: ["Heptad", "Worthy of veneration; the motherless virgin Minerva, and the right moment (opportunity)."],
+      8: ["Ogdoad", "The first cube; associated with love, counsel, prudence and law."],
+      9: ["Ennead", "The horizon or boundary. It falls just short of ten, so it closes the cycle and gathers all numbers before the return."]
+    }
+  },
   numerology: {
     1: "Begin. Initiative, independence, a fresh start.", 2: "Pair up. Patience, cooperation, listening.", 3: "Express. Words, creativity, social ease.", 4: "Build. Order, effort, foundations.",
     5: "Move. Change, freedom, the unexpected.", 6: "Care. Responsibility, home, the people you hold.", 7: "Withdraw. Study, analysis, solitude.", 8: "Lead. Money, authority, execution.", 9: "Complete. Release, generosity, endings.",
