@@ -102,7 +102,8 @@
     const systemsPer = t => [...new Set(sig.filter(s => s.theme === t).map(s => s.sys))];
     const cautions = sig.filter(s => s.hard && s.caution);
     const home = homeLoc(); const ph = E.planetaryHours(y, m, d, tz, home.lat, home.lon);
-    return { home, ph, y, m, d, noon, start, end, tr, asp, trAct, completed, transitOnly, newCenters, dayDef, num, bz, god, rel, moon, moonTl, bio, contacts, upcoming, sig, ranked, systemsPer, cautions };
+    let lun = null; try { lun = E.lunarCycles(noon, natal, home.lat, home.lon); } catch (e) { console.warn(e); }
+    return { home, ph, y, m, d, noon, start, end, tr, asp, trAct, completed, transitOnly, newCenters, dayDef, num, bz, god, rel, moon, lun, moonTl, bio, contacts, upcoming, sig, ranked, systemsPer, cautions };
   }
 
   // ---------- render helpers ----------
@@ -221,12 +222,32 @@ ${profile.link && isToday ? `<a class="cta" href="${esc(profile.link)}" target="
   <div class="panel"><div class="head"><h2>On the horizon</h2><span class="eyebrow">next 12 days</span></div>
     <ul class="rows">${M.upcoming.slice(0, 9).map(u => `<li><span class="t">${new Intl.DateTimeFormat("en-GB", { timeZone: profile.tz, weekday: "short", day: "numeric", month: "short" }).format(u.date)}</span><span>${glyph(u.t)} ${u.t} ${u.aspect} your ${nm(u.n)}. <span class="note">${L.planets[u.t][1]}${["square", "opposite"].includes(u.aspect) ? `; watch ${L.planets[u.t][2]}` : ""}.</span></span></li>`).join("") || "<li><span></span><span class='note'>Quiet stretch.</span></li>"}</ul></div>
 </section>
+${M.lun ? (() => { const U = M.lun, LL = L.lunar, df = o => new Intl.DateTimeFormat("en-GB", Object.assign({ timeZone: profile.tz }, o)); const dt = x => df({ weekday: "short", day: "numeric", month: "short", year: x.getFullYear() !== M.y ? "numeric" : undefined, hour: "2-digit", minute: "2-digit" }).format(x); const hits = hs => hs.length ? hs.slice(0, 4).map(h => `${h.aspect} your ${nm(h.n)} ${h.orb.toFixed(1)}°${h.sun ? " (Sun)" : ""}`).join(", ") : "no tight contact with your chart"; const tag = x => x.tag === "super" ? (x.kind === "full" ? '<span class="chip brass">supermoon</span>' : '<span class="chip mute">super new moon</span>') : x.tag === "micro" ? '<span class="chip mute">micromoon</span>' : ""; const blue = U.fulls.filter((f, i) => i && f > M.noon && df({ year: "numeric", month: "2-digit" }).format(f) === df({ year: "numeric", month: "2-digit" }).format(U.fulls[i - 1])); const ph = LL.phases[U.phase];
+  return `<section class="panel" id="lunar"><div class="head"><h2>Moon cycles</h2><span class="eyebrow">this lunation · what's coming</span></div>
+  <div class="grid2" style="gap:18px"><div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg id="lunwheel" viewBox="0 0 260 260" width="100%" style="max-width:260px"></svg><p class="note" style="text-align:center">Day ${Math.round(U.age)} of 29.5 · ${Math.round(U.illum * 100)}% lit · ${U.km.toLocaleString("en-GB")} km away</p></div>
+  <div><p class="eyebrow">Current phase</p><h3>${U.phase} · <em>${ph[0]}</em></h3><p>${ph[1]}</p><p class="note">This cycle began with the New Moon of ${dt(U.start.date)} at ${E.fmtLon(U.start.lon)} (your house ${E.houseOf(U.start.lon, natal.houses.cusps)}). Whatever you seeded then is what this cycle is about.</p>
+  <p><span class="chip sky">your natal phase: ${U.natalPhase}</span></p><p class="note">Born in the ${U.natalPhase} phase: ${LL.natal[U.natalPhase]}.</p>${U.lunarReturn ? `<p class="note">Next lunar return (Moon back to its birth position, your monthly emotional reset): ${dt(U.lunarReturn)}.</p>` : ""}</div></div>
+  <h3 style="font-style:italic">Next lunations</h3><ul class="rows">${U.next.map(x => `<li><span class="t">${dt(x.date)}</span><span><b>${x.kind === "full" ? "Full Moon" : "New Moon"}</b> at ${E.fmtLon(x.kind === "full" ? x.moonLon : x.sunLon)} ${tag(x)}<br><span class="note">${x.km.toLocaleString("en-GB")} km · ${hits(x.hits)}</span></span></li>`).join("")}</ul>
+  <h3 style="font-style:italic">Next eclipses</h3><ul class="rows">${U.eclipses.map(x => `<li><span class="t">${dt(x.date)}</span><span><b>${x.type[0].toUpperCase() + x.type.slice(1)} eclipse</b> at ${E.fmtLon(x.lon)}${x.type.startsWith("solar") ? (x.local ? ` · ${x.local}% covered from ${esc(M.home.name)}` : ` · not visible from ${esc(M.home.name)}`) : ""}<br><span class="note">${hits(x.hits)}</span></span></li>`).join("")}</ul>
+  ${blue.length ? `<p class="note">Blue moon (second full Moon in a month): ${blue.map(dt).join(", ")}.</p>` : ""}
+  <p class="note"><b>Evidence check.</b> ${LL.evidence}</p></section>`; })() : ""}
 <div class="orn">✦</div>
 <footer>
   <p><b>Calculated</b> on this phone with Astronomy Engine (positions within about 0.01° of the Swiss Ephemeris). Planet positions, gates, aspects, numbers and pillars are exact arithmetic.</p>
   <p><b>Interpreted:</b> none of these systems has shown predictive power in controlled tests. Use them as a structured prompt for attention.</p>
 </footer>`;
-    drawWheel(M); drawBodygraph(M); drawHex(tri); drawMoon(M.moon); drawTimeline(M, isToday); drawMandala();
+    drawWheel(M); drawBodygraph(M); drawHex(tri); drawMoon(M.moon); if (M.lun) drawLunar(M.lun); drawTimeline(M, isToday); drawMandala();
+  }
+
+  function drawLunar(U) {
+    const s = $("#lunwheel"); if (!s) return; const c = 130, R = 82, E8 = U.elong;
+    el(s, "circle", { cx: c, cy: c, r: R, fill: "none", stroke: "var(--line)", "stroke-dasharray": "2 4" });
+    const N = ["New", "Crescent", "First Q.", "Gibbous", "Full", "Dissem.", "Last Q.", "Balsamic"], cur = Math.floor(E8 / 45) % 8;
+    for (let i = 0; i < 8; i++) { const e = i * 45, a = (-90 + e) * Math.PI / 180, x = c + R * Math.cos(a), y = c + R * Math.sin(a), k = (1 - Math.cos(e * Math.PI / 180)) / 2, r = 11;
+      el(s, "circle", { cx: x, cy: y, r, fill: "var(--line)", stroke: cur === i ? "var(--brass)" : "none", "stroke-width": 2 });
+      if (k > 0.02) { const rx = Math.abs(1 - 2 * k) * r, sw = k > 0.5 ? 1 : 0; const d = e <= 180 ? `M${x} ${y - r} A${r} ${r} 0 0 1 ${x} ${y + r} A${rx} ${r} 0 0 ${sw} ${x} ${y - r}z` : `M${x} ${y - r} A${r} ${r} 0 0 0 ${x} ${y + r} A${rx} ${r} 0 0 ${1 - sw} ${x} ${y - r}z`; el(s, "path", { d, fill: "var(--brass)" }); }
+      el(s, "text", { x: c + (R + 28) * Math.cos(a), y: c + (R + 26) * Math.sin(a), "text-anchor": "middle", "dominant-baseline": "central", "font-size": 9.5, fill: cur === i ? "var(--brass)" : "var(--muted)" }, N[i]); }
+    const a = (-90 + E8) * Math.PI / 180; el(s, "line", { x1: c, y1: c, x2: c + (R - 18) * Math.cos(a), y2: c + (R - 18) * Math.sin(a), stroke: "var(--brass)", "stroke-width": 1.5 }); el(s, "circle", { cx: c, cy: c, r: 3, fill: "var(--brass)" });
   }
 
   function drawWheel(M) {

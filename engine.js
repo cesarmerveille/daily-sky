@@ -180,6 +180,45 @@
     const nextFull = A.SearchMoonPhase(180, t, 40).date, nextNew = A.SearchMoonPhase(0, t, 40).date;
     return { elong: el, illum, name: names[idx], nextFull, nextNew, fullLon: lonOf("Moon", nextFull) };
   }
+
+  // ---------- Lunar cycles ----------
+  const AU_KM = 149597870.7;
+  const moonKm = d => A.GeoMoon(A.MakeTime(d)).Length() * AU_KM;
+  const PHASE8 = ["New", "Crescent", "First Quarter", "Gibbous", "Full", "Disseminating", "Last Quarter", "Balsamic"];
+  const phase8 = el => PHASE8[Math.floor(norm(el) / 45) % 8];
+  function natalHits(lon, natal, orb = 3) {
+    const nat = { ...Object.fromEntries(Object.entries(natal.positions).map(([k, v]) => [k, v.lon])), ASC: natal.houses.asc, MC: natal.houses.mc };
+    const out = [];
+    for (const [n, nl] of Object.entries(nat)) { const d = Math.abs(sdiff(lon, nl)); for (const [a, name] of ASPECTS) { const o = Math.abs(d - a); if (o <= orb) out.push({ aspect: name, n, orb: o }); } }
+    return out.sort((a, b) => a.orb - b.orb);
+  }
+  function lunation(date, kind, natal) {
+    const d = moonKm(date); let mn = Infinity, mx = 0;
+    for (let h = -360; h <= 360; h += 3) { const k = moonKm(new Date(date.getTime() + h * 3600e3)); if (k < mn) mn = k; if (k > mx) mx = k; }
+    const pct = (mx - d) / (mx - mn) * 100;
+    const moonLon = lonOf("Moon", date), sunLon = lonOf("Sun", date);
+    const hits = kind === "full" ? [...natalHits(moonLon, natal), ...natalHits(sunLon, natal).map(h => ({ ...h, sun: true }))] : natalHits(sunLon, natal);
+    return { kind, date, moonLon, sunLon, km: Math.round(d), pct: Math.round(pct), tag: pct >= 90 ? "super" : pct <= 10 ? "micro" : "", hits };
+  }
+  function lunarCycles(date, natal, lat, lon) {
+    const t = A.MakeTime(date), el = A.MoonPhase(t);
+    const prevNew = A.SearchMoonPhase(0, A.MakeTime(new Date(date.getTime() - 30 * 86400e3)), 31);
+    let pn = prevNew.date; const nn = A.SearchMoonPhase(0, A.MakeTime(new Date(pn.getTime() + 86400e3)), 31).date; if (nn < date) pn = nn;
+    const next = []; let s = date;
+    for (let i = 0; i < 4; i++) { const n = A.SearchMoonPhase(0, A.MakeTime(s), 40).date, f = A.SearchMoonPhase(180, A.MakeTime(s), 40).date; const x = n < f ? n : f; next.push(lunation(x, x === n ? "new" : "full", natal)); s = new Date(x.getTime() + 86400e3); }
+    const ecl = [];
+    try { const g = A.SearchGlobalSolarEclipse(t); const loc = A.SearchLocalSolarEclipse(t, new A.Observer(lat, lon, 0));
+      const same = Math.abs(loc.peak.time.date - g.peak.date) < 86400e3;
+      ecl.push({ type: "solar " + g.kind, date: g.peak.date, lon: lonOf("Sun", g.peak.date), local: same ? Math.round(loc.obscuration * 100) : 0, hits: natalHits(lonOf("Sun", g.peak.date), natal, 2) }); } catch (e) {}
+    try { const l = A.SearchLunarEclipse(t); ecl.push({ type: "lunar " + l.kind, date: l.peak.date, lon: lonOf("Moon", l.peak.date), hits: natalHits(lonOf("Moon", l.peak.date), natal, 2) }); } catch (e) {}
+    ecl.sort((a, b) => a.date - b.date);
+    const nm = natal.positions.Moon.lon; let lr = null, p = null;
+    for (let h = 0; h < 30 * 24; h += 0.25) { const dd = new Date(date.getTime() + h * 3600e3); const a = sdiff(lonOf("Moon", dd), nm); if (p !== null && p < 0 && a >= 0) { lr = dd; break; } p = a; }
+    const fulls = []; s = new Date(date.getTime() - 31 * 86400e3);
+    for (let i = 0; i < 15; i++) { const f = A.SearchMoonPhase(180, A.MakeTime(s), 40).date; fulls.push(f); s = new Date(f.getTime() + 86400e3); }
+    const natEl = norm(natal.positions.Moon.lon - natal.positions.Sun.lon);
+    return { elong: el, phase: phase8(el), illum: (1 - Math.cos(el * D2R)) / 2, age: (date - pn) / 86400e3, km: Math.round(moonKm(date)), start: { date: pn, lon: lonOf("Sun", pn) }, next, eclipses: ecl, lunarReturn: lr, fulls, natalPhase: phase8(natEl), natalElong: natEl };
+  }
   function moonGateTimeline(dayStart) { // gate changes over 24h from dayStart
     const seq = []; let last = null;
     for (let m = 0; m <= 1440; m += 5) { const g = gateOf(lonOf("Moon", new Date(dayStart.getTime() + m * 60e3))).gate; if (g !== last) { seq.push({ min: m, gate: g }); last = g; } }
@@ -269,5 +308,5 @@
     return new Date(guess);
   }
   function fmtLon(l) { const s = Math.floor(norm(l) / 30), x = norm(l) % 30; return `${Math.floor(x)}°${String(Math.floor((x % 1) * 60)).padStart(2, "0")}′ ${SIGNS[s]}`; }
-  return { lonOf, positions, houses, houseOf, gateOf, activations, gatesOf, channelsOf, definedCenters, centerOf, designDate, hdType, natalChart, transitAspects, upcoming, moonPhase, moonGateTimeline, numerology, baziFull, dayPillarIndex, pillar, tenGod, branchRelation, eot, biorhythm, planetaryHours, zoned, fmtLon, norm, sdiff, SIGNS, CENTERS, CHANNELS, STEM_EL, STEMS };
+  return { lonOf, positions, houses, houseOf, gateOf, activations, gatesOf, channelsOf, definedCenters, centerOf, designDate, hdType, natalChart, transitAspects, upcoming, moonPhase, lunarCycles, natalHits, moonGateTimeline, numerology, baziFull, dayPillarIndex, pillar, tenGod, branchRelation, eot, biorhythm, planetaryHours, zoned, fmtLon, norm, sdiff, SIGNS, CENTERS, CHANNELS, STEM_EL, STEMS };
 });
