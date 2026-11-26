@@ -37,7 +37,9 @@
       <label>Birth time <input id="f-time" type="time" required></label>
     </div>
     <label>Birthplace
-      <select id="f-city"></select>
+      <input id="f-city" list="f-cities" autocomplete="off" placeholder="Start typing a city, e.g. Tehran">
+      <datalist id="f-cities"></datalist>
+      <small class="hint">About 300 cities worldwide. Not listed? Pick the nearest big city, or type its coordinates and a time zone like Asia/Tehran below.</small>
     </label>
     <div class="row3">
       <label>Latitude <input id="f-lat" type="number" step="0.0001" required></label>
@@ -54,6 +56,7 @@
 <script src="astronomy.browser.min.js"></script>
 <script src="engine.js"></script>
 <script src="lore.js"></script>
+<script src="cities.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

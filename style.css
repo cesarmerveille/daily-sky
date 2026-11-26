@@ -123,3 +123,4 @@ input,select{font:400 1rem var(--body);color:var(--ink);background:rgba(255,255,
 .hr .t{color:var(--brass);font-size:.78rem;font-variant-numeric:tabular-nums}
 .hr.night{opacity:.65}
 .hr.cur{background:var(--brass-soft);border-color:var(--brass);box-shadow:0 0 16px -4px rgba(226,189,106,.6)}
+.hint{display:block;text-transform:none;letter-spacing:normal;font-family:Jost,sans-serif;font-size:.78rem;opacity:.7;margin-top:.3rem;line-height:1.35}

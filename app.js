@@ -8,7 +8,8 @@
   const glyph = k => (G[k] || k) + (G[k] && G[k].length === 1 ? "︎" : "");
   const NAMES = { NNode: "North Node", ASC: "Ascendant", MC: "Midheaven" };
   const nm = k => NAMES[k] || k;
-  const CITIES = [["Paris", 48.8566, 2.3522, "Europe/Paris"], ["Berlin", 52.52, 13.405, "Europe/Berlin"], ["London", 51.5074, -0.1278, "Europe/London"], ["Madrid", 40.4168, -3.7038, "Europe/Madrid"], ["Rome", 41.9028, 12.4964, "Europe/Rome"], ["Amsterdam", 52.3676, 4.9041, "Europe/Amsterdam"], ["Brussels", 50.8503, 4.3517, "Europe/Brussels"], ["Zurich", 47.3769, 8.5417, "Europe/Zurich"], ["Vienna", 48.2082, 16.3738, "Europe/Vienna"], ["Lisbon", 38.7223, -9.1393, "Europe/Lisbon"], ["Lyon", 45.764, 4.8357, "Europe/Paris"], ["Marseille", 43.2965, 5.3698, "Europe/Paris"], ["Munich", 48.1351, 11.582, "Europe/Berlin"], ["Hamburg", 53.5511, 9.9937, "Europe/Berlin"], ["Stockholm", 59.3293, 18.0686, "Europe/Stockholm"], ["New York", 40.7128, -74.006, "America/New_York"], ["Los Angeles", 34.0522, -118.2437, "America/Los_Angeles"], ["Montreal", 45.5019, -73.5674, "America/Toronto"], ["Mexico City", 19.4326, -99.1332, "America/Mexico_City"], ["São Paulo", -23.5505, -46.6333, "America/Sao_Paulo"], ["Dakar", 14.7167, -17.4677, "Africa/Dakar"], ["Casablanca", 33.5731, -7.5898, "Africa/Casablanca"], ["Tokyo", 35.6762, 139.6503, "Asia/Tokyo"], ["Mumbai", 19.076, 72.8777, "Asia/Kolkata"], ["Sydney", -33.8688, 151.2093, "Australia/Sydney"]];
+  const CITIES = CITY_LIST.map(c => [c[0], c[2], c[3], c[4], c[1]]);
+  const cityLabel = c => c[0] + ", " + c[4];
 
   // ---------- storage ----------
   const KEY = "dailysky.profile.v1";
@@ -408,8 +409,9 @@ ${M.lun ? (() => { const U = M.lun, LL = L.lunar, df = o => new Intl.DateTimeFor
   // ---------- setup ----------
   function openSetup(first) {
     const dlg = $("#setup"); const sel = $("#f-city");
-    sel.innerHTML = `<option value="">Choose a city, or type coordinates below</option>` + CITIES.map((c, i) => `<option value="${i}">${c[0]}</option>`).join("");
-    sel.onchange = () => { const c = CITIES[sel.value]; if (c) { $("#f-lat").value = c[1]; $("#f-lon").value = c[2]; $("#f-btz").value = c[3]; } };
+    $("#f-cities").innerHTML = CITIES.map(cityLabel).sort((x, y) => x.localeCompare(y)).map(l => `<option value="${l}">`).join("");
+    const pick = () => { const v = sel.value.trim().toLowerCase(); if (!v) return; const c = CITIES.find(c => cityLabel(c).toLowerCase() === v) || CITIES.filter(c => c[0].toLowerCase() === v.split(",")[0].trim()).at(0); if (c) { $("#f-lat").value = c[1]; $("#f-lon").value = c[2]; $("#f-btz").value = c[3]; } };
+    sel.oninput = pick; sel.onchange = pick; sel.value = "";
     const p = profile || {};
     $("#f-name").value = p.name || ""; $("#f-date").value = p.date || ""; $("#f-time").value = p.time || ""; $("#f-lat").value = p.lat ?? ""; $("#f-lon").value = p.lon ?? ""; $("#f-btz").value = p.btz || ""; $("#f-tz").value = p.tz || Intl.DateTimeFormat().resolvedOptions().timeZone; $("#f-link").value = p.link || ""; $("#f-mode").value = p.mode || (first ? "simple" : "full");
     $("#cancelSetup").hidden = !!first;
