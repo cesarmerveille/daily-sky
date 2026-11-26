@@ -113,7 +113,11 @@
   const minToHM = mi => `${String(Math.floor(mi / 60) % 24).padStart(2, "0")}:${String(mi % 60).padStart(2, "0")}`;
 
   // ---------- Simple view: plain language ----------
-  function renderSimple(M) {
+  function modeSwitch() { const s = profile.mode === "simple"; return `<div class="modesw" role="group" aria-label="Reading depth"><button data-m="simple" aria-pressed="${s}">Essential</button><button data-m="full" aria-pressed="${!s}">Deeper</button></div>`; }
+  function bindSwitch() { document.querySelectorAll(".modesw button").forEach(b => b.onclick = () => { if (profile.mode === b.dataset.m) return; profile.mode = b.dataset.m; save(profile); render(); scrollTo({ top: 0 }); }); }
+  const DEEP_LABEL = { good: "the signals behind this", times: "the Moon's path and planetary hours", moon: "Moon cycles and eclipses", number: "numbers, Four Pillars and I Ching", week: "chart wheel and aspects", about: "your Human Design body map" };
+  function renderSimple(M, nodes = {}) {
+    const deep = k => nodes[k] ? `<div class="deepwrap"><button class="godeep" data-k="${k}" aria-expanded="false">Go deeper <span class="note">· ${DEEP_LABEL[k]}</span> <span class="chev">›</span></button><div class="deeper" data-for="${k}" hidden></div></div>` : "";
     const S = L.simple, U = M.lun;
     const tf = (d, o) => new Intl.DateTimeFormat("en-GB", Object.assign({ timeZone: profile.tz }, o)).format(d);
     const hm = d => tf(d, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
@@ -149,6 +153,7 @@
     const week = M.upcoming.filter(u => u.date - M.start < 8 * 86400e3).slice(0, 5).map(u => `<li><span class="t">${tf(u.date, { weekday: "short", day: "numeric", month: "short" })}</span><span>${(() => { const pt = S.points[u.n] || nm(u.n); return pt[0].toUpperCase() + pt.slice(1); })()} ${S.toneNoun[u.aspect]} ${S.planets[u.t] || u.t}.</span></li>`).join("");
     const app = $("#app");
     app.innerHTML = `
+${modeSwitch()}
 <header class="hero">
   <svg class="mandala" viewBox="0 0 480 480" aria-hidden="true"><g id="mand"></g></svg>
   <div>
@@ -161,8 +166,10 @@
   <div class="panel"><div class="head"><h2>Good for</h2><span class="eyebrow">today</span></div><ul class="list lean">${good.map(x => `<li><span>${x}</span></li>`).join("")}</ul></div>
   <div class="panel"><div class="head"><h2>Go easy on</h2><span class="eyebrow">today</span></div><ul class="list guard">${easy.slice(0, 3).map(x => `<li><span>${x}</span></li>`).join("")}</ul></div>
 </section>
+${deep("good")}
 ${times.length ? `<section class="panel"><div class="head"><h2>Moments to notice</h2><span class="eyebrow">${esc(M.home.name)} time</span></div>
   <ul class="rows">${times.map(([t, x, hard]) => `<li><span class="t">${t}</span><span>${hard ? "<b>" : ""}${x}${hard ? "</b>" : ""}</span></li>`).join("")}</ul></section>` : ""}
+${deep("times")}
 <section class="grid2">
   <div class="panel"><div class="head"><h2>The Moon</h2><span class="eyebrow">${ph ? esc(ph) : ""}</span></div>
     <div style="display:flex;gap:18px;align-items:center"><svg id="moon" width="86" height="86" viewBox="0 0 100 100"></svg><div><h3>${Math.round(M.moon.illum * 100)}% lit</h3><p>${ph ? esc(S.phases[ph]) : ""}</p></div></div>
@@ -173,7 +180,9 @@ ${times.length ? `<section class="panel"><div class="head"><h2>Moments to notice
     <p>${esc(L.numerology[M.num.personalDay])}</p>
     <p class="note">Tarot card for today: ${L.tarot[M.num.personalDay]}.</p></div>
 </section>
+${deep("moon")}${deep("number")}
 ${week ? `<section class="panel"><div class="head"><h2>The week ahead</h2></div><ul class="rows">${week}</ul></section>` : ""}
+${deep("week")}
 <section class="panel"><div class="head"><h2>About you</h2><span class="eyebrow">your birth chart in a nutshell</span></div>
   <ul class="rows">
     <li><span class="t">Sun · ${sign(natal.positions.Sun.lon)}</span><span>At heart you are ${S.signs[Math.floor(E.norm(natal.positions.Sun.lon) / 30)]}.</span></li>
@@ -181,18 +190,18 @@ ${week ? `<section class="panel"><div class="head"><h2>The week ahead</h2></div>
     <li><span class="t">Rising · ${sign(natal.houses.asc)}</span><span>People first see you as ${S.signs[Math.floor(E.norm(natal.houses.asc) / 30)]}.</span></li>
     <li><span class="t">Decisions</span><span>${esc(S.types[natal.type] || "")}</span></li>
   </ul></section>
+${deep("about")}
 <p class="note" style="text-align:center;margin:6px 0 0">Based on astrology, numerology, Human Design and the Chinese calendar, calculated for your birth chart. Treat it as a gentle nudge, not a prediction.</p>
-<p style="text-align:center"><button class="ghost" id="toFull">Show the detailed version</button></p>
 <div class="orn">✦</div>`;
-    drawMoon(M.moon); drawMandala();
-    $("#toFull").onclick = () => { profile.mode = "full"; save(profile); render(); scrollTo({ top: 0 }); };
+    drawMoon(M.moon); drawMandala(); bindSwitch();
+    app.querySelectorAll(".deeper").forEach(d => (nodes[d.dataset.for] || []).forEach(n => d.appendChild(n)));
+    app.querySelectorAll(".godeep").forEach(b => b.onclick = () => { const d = b.nextElementSibling, open = d.hidden; d.hidden = !open; b.setAttribute("aria-expanded", open); if (!open) b.scrollIntoView({ block: "nearest" }); });
   }
 
   function render() {
     const M = dayModel(...sel);
     $("#dlabel").textContent = fmtDate(M.y, M.m, M.d, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
     $("#datepick").value = `${M.y}-${String(M.m).padStart(2, "0")}-${String(M.d).padStart(2, "0")}`;
-    if (profile.mode === "simple") return renderSimple(M);
     const T1 = M.ranked[0] ? L.themes[M.ranked[0][0]] : L.themes.Reflection, T2 = M.ranked[1] ? L.themes[M.ranked[1][0]] : null;
     const topCaution = M.cautions[0];
     const typeInfo = L.types[natal.type] || ["", ""];
@@ -219,6 +228,7 @@ ${week ? `<section class="panel"><div class="head"><h2>The week ahead</h2></div>
 
     const app = $("#app");
     app.innerHTML = `
+${modeSwitch()}
 <header class="hero">
   <svg class="mandala" viewBox="0 0 480 480" aria-hidden="true"><g id="mand"></g></svg>
   <div>
@@ -227,19 +237,19 @@ ${week ? `<section class="panel"><div class="head"><h2>The week ahead</h2></div>
     <p class="lede">${agreeN >= 2 ? `${agreeN} separate systems point at <b>${esc(T1.label.toLowerCase())}</b> today.` : `The systems scatter today; no single theme dominates.`} ${M.cautions.length ? `${M.cautions.length} signal${M.cautions.length > 1 ? "s" : ""} call${M.cautions.length > 1 ? "" : "s"} for care.` : "Few hard edges in the sky."} ${isToday ? "" : `<br><span class="note">You're looking at ${fmtDate(M.y, M.m, M.d, { day: "numeric", month: "long", year: "numeric" })}.</span>`}</p>
   </div>
 </header>
-${profile.link && isToday ? `<a class="cta" href="${esc(profile.link)}" target="_blank" rel="noopener">✦ Read today's written reading</a>` : ""}
-<section class="grid2">
+${profile.link && isToday ? `<a class="cta" data-deep="good" href="${esc(profile.link)}" target="_blank" rel="noopener">✦ Read today's written reading</a>` : ""}
+<section class="grid2" data-deep="good">
   <div class="panel"><div class="head"><h2>Lean into</h2><span class="eyebrow">today</span></div><ul class="list lean">${lean.map(x => `<li><span>${x}</span></li>`).join("")}</ul></div>
   <div class="panel"><div class="head"><h2>Guard against</h2><span class="eyebrow">today</span></div><ul class="list guard">${guard.map(x => `<li><span>${x}</span></li>`).join("")}</ul></div>
 </section>
 <div class="orn">as above</div>
-<section class="panel">
+<section class="panel" data-deep="times">
   <div class="head"><h2>The Moon's path</h2><span class="eyebrow">${esc(profile.tz.split("/").pop().replace("_", " "))} time</span></div>
   <div class="scroll"><div class="tl" id="tl" style="min-width:540px"></div></div>
   <ul class="rows">${M.moonTl.map((s, i) => { const e = M.moonTl[i + 1] ? M.moonTl[i + 1].min : 1440; return `<li><span class="t">${minToHM(s.min)}–${minToHM(e)}</span><span>Moon in gate ${s.gate}, ${esc(L.gates[s.gate])}${natal.gates.has(s.gate) ? " <b>(your gate)</b>" : ""}${(() => { const ch = E.CHANNELS.find(c => c.includes(s.gate) && natal.gates.has(c[0] === s.gate ? c[1] : c[0])); return ch ? `. Completes ${ch.join("–")} ${L.channels[ch.join("-")]}.` : "."; })()}</span></li>`; }).join("")}
   ${M.contacts.map(c => `<li><span class="t">~${minToHM(c.min)}</span><span>${c.hard ? "<b>" : ""}${esc(c.txt)}${c.hard ? "</b>" : ""}</span></li>`).join("")}</ul>
 </section>
-<section class="panel">
+<section class="panel" data-deep="good">
   <div class="head"><h2>Where the oracles agree</h2><span class="eyebrow">${M.sig.length} signals</span></div>
   <div class="scroll"><table class="matrix"><thead><tr><th>System</th><th>Signal</th><th>Theme</th></tr></thead><tbody>
   ${M.sig.map(s => `<tr><td>${s.sys}</td><td>${esc(s.txt)}</td><td><span class="chip ${s.hard ? "warn" : s.theme === M.ranked[0]?.[0] ? "ok" : "mute"}">${esc(L.themes[s.theme]?.label || "—")}</span></td></tr>`).join("")}
@@ -250,7 +260,7 @@ ${profile.link && isToday ? `<a class="cta" href="${esc(profile.link)}" target="
     <div class="box clash"><h3>Tension</h3><p>${(() => { const act = ["Action", "Change", "Resources"].includes(M.ranked[0]?.[0]); if (act && ["Generator", "Projector", "Reflector"].includes(natal.type)) return `The sky pushes toward ${esc(T1.label.toLowerCase())}, while your ${natal.type} strategy says <b>${typeInfo[0].toLowerCase()}</b>. Don't start new things; respond fully to what comes.`; if (M.cautions.length) return `${esc(M.cautions[0].txt)} pulls against the main theme. Go ahead, at a pace your body agrees with.`; return "Little conflict between the systems today."; })()}</p></div>
   </div>
 </section>
-<section class="panel">
+<section class="panel" data-deep="times">
   <div class="head"><h2>Hermetic key</h2><span class="eyebrow">after Manly P. Hall</span></div>
   ${(() => { const H = L.hermetic; const r = M.ph ? M.ph.ruler : H.weekdayRuler[new Date(Date.UTC(M.y, M.m - 1, M.d)).getUTCDay()]; const sp = H.sephirah[r]; const dom = (M.asp.find(a => a.t !== "Moon") || {}).t; const dsp = dom && H.sephirah[dom]; const py = H.pythag[M.num.personalDay] || H.pythag[9];
     const fmt = d => new Intl.DateTimeFormat("en-GB", { timeZone: profile.tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(d);
@@ -265,7 +275,7 @@ ${profile.link && isToday ? `<a class="cta" href="${esc(profile.link)}" target="
     <p class="note">Planetary hours divide daylight and night into twelve unequal parts each, starting at sunrise in ${esc(M.home.name)} (${fmt(M.ph.sunrise)}) and running in the Chaldean order.</p>` : ""}`; })()}
   <p class="note">Symbolic, not historical. Hall's 1928 book is a synthesis of Pythagorean, Kabbalistic and alchemical lore; the pairings are traditional, and many of his historical claims don't hold up.</p>
 </section>
-<section class="grid2">
+<section class="grid2" data-deep="week">
   <div class="panel"><div class="head"><h2>Your sky</h2><span class="eyebrow">inner: birth · outer: this day</span></div>
     <svg id="wheel" class="svgbox" viewBox="0 0 440 440" style="max-width:440px" role="img" aria-label="Chart wheel"></svg>
     <div class="legend"><span><i style="border-color:var(--warn)"></i>square / opposition</span><span><i style="border-color:var(--ok)"></i>trine / sextile</span><span><i style="border-color:var(--brass)"></i>conjunction</span></div></div>
@@ -274,13 +284,13 @@ ${profile.link && isToday ? `<a class="cta" href="${esc(profile.link)}" target="
   </div>
 </section>
 <div class="orn">so below</div>
-<section class="grid2">
+<section class="grid2" data-deep="about">
   <div class="panel"><div class="head"><h2>Your body's map</h2><span class="eyebrow">${natal.type} · ${natal.authority} · ${natal.profile}</span></div>
     <svg id="bg" class="svgbox" viewBox="0 0 320 470" style="max-width:320px" role="img" aria-label="Bodygraph"></svg>
     <div class="legend"><span><i style="border-color:var(--ink)"></i>yours</span><span><i style="border-color:var(--brass);border-top-style:dashed"></i>completed today</span><span><i style="border-color:var(--muted);border-top-style:dotted"></i>everyone</span></div></div>
   <div class="panel"><div class="head"><h2>How the currents move you</h2></div><div style="display:flex;flex-direction:column;gap:14px">${hdNotes.join("")}</div></div>
 </section>
-<section class="grid3">
+<section class="grid3" data-deep="number">
   <div class="panel"><div class="head"><h2>The numbers</h2></div>
     <div class="nums"><div class="num key"><span class="v">${M.num.personalDay}</span><span class="k">Personal day</span></div><div class="num"><span class="v">${M.num.personalMonth}</span><span class="k">Personal month</span></div><div class="num"><span class="v">${pyLabel}</span><span class="k">Personal year</span></div><div class="num"><span class="v">${M.num.lifePath}</span><span class="k">Life path</span></div></div>
     <p>${L.numerology[M.num.personalDay]}</p><p class="note">Tarot for day ${M.num.personalDay}: ${L.tarot[M.num.personalDay]}. Universal day ${M.num.universalDay}.</p></div>
@@ -295,15 +305,15 @@ ${profile.link && isToday ? `<a class="cta" href="${esc(profile.link)}" target="
     <p class="note">This is the Sun's gate, shared by everyone for about six days.</p></div>
 </section>
 <section class="grid2">
-  <div class="panel"><div class="head"><h2>Moon &amp; body</h2></div>
+  <div class="panel" data-deep="moon"><div class="head"><h2>Moon &amp; body</h2></div>
     <div style="display:flex;gap:18px;align-items:center"><svg id="moon" width="86" height="86" viewBox="0 0 100 100"></svg><div><h3>${M.moon.name} · ${Math.round(M.moon.illum * 100)}%</h3><p class="note">Moon in ${E.SIGNS[Math.floor(E.norm(M.tr.Moon.lon) / 30)]}, your house ${E.houseOf(M.tr.Moon.lon, natal.houses.cusps)}. Next full Moon ${new Intl.DateTimeFormat("en-GB", { timeZone: profile.tz, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(M.moon.nextFull)} at ${E.fmtLon(M.moon.fullLon)}.</p></div></div>
     <div class="bars">${[["Physical", M.bio.physical], ["Emotional", M.bio.emotional], ["Intellectual", M.bio.intellectual]].map(([n, v]) => `<div class="r"><span>${n}</span><div class="track c"><i style="left:${v < 0 ? 50 + v * 50 : 50}%;width:${Math.abs(v) * 50}%"></i></div><span class="note">${v > 0 ? "+" : ""}${Math.round(v * 100)}</span></div>`).join("")}</div>
     <p class="note">Biorhythm has been tested and found to predict nothing. It's here for completeness.</p></div>
-  <div class="panel"><div class="head"><h2>On the horizon</h2><span class="eyebrow">next 12 days</span></div>
+  <div class="panel" data-deep="week"><div class="head"><h2>On the horizon</h2><span class="eyebrow">next 12 days</span></div>
     <ul class="rows">${M.upcoming.slice(0, 9).map(u => `<li><span class="t">${new Intl.DateTimeFormat("en-GB", { timeZone: profile.tz, weekday: "short", day: "numeric", month: "short" }).format(u.date)}</span><span>${glyph(u.t)} ${u.t} ${u.aspect} your ${nm(u.n)}. <span class="note">${L.planets[u.t][1]}${["square", "opposite"].includes(u.aspect) ? `; watch ${L.planets[u.t][2]}` : ""}.</span></span></li>`).join("") || "<li><span></span><span class='note'>Quiet stretch.</span></li>"}</ul></div>
 </section>
 ${M.lun ? (() => { const U = M.lun, LL = L.lunar, df = o => new Intl.DateTimeFormat("en-GB", Object.assign({ timeZone: profile.tz }, o)); const dt = x => df({ weekday: "short", day: "numeric", month: "short", year: x.getFullYear() !== M.y ? "numeric" : undefined, hour: "2-digit", minute: "2-digit" }).format(x); const hits = hs => hs.length ? hs.slice(0, 4).map(h => `${h.aspect} your ${nm(h.n)} ${h.orb.toFixed(1)}°${h.sun ? " (Sun)" : ""}`).join(", ") : "no tight contact with your chart"; const tag = x => x.tag === "super" ? (x.kind === "full" ? '<span class="chip brass">supermoon</span>' : '<span class="chip mute">super new moon</span>') : x.tag === "micro" ? '<span class="chip mute">micromoon</span>' : ""; const blue = U.fulls.filter((f, i) => i && f > M.noon && df({ year: "numeric", month: "2-digit" }).format(f) === df({ year: "numeric", month: "2-digit" }).format(U.fulls[i - 1])); const ph = LL.phases[U.phase];
-  return `<section class="panel" id="lunar"><div class="head"><h2>Moon cycles</h2><span class="eyebrow">this lunation · what's coming</span></div>
+  return `<section class="panel" id="lunar" data-deep="moon"><div class="head"><h2>Moon cycles</h2><span class="eyebrow">this lunation · what's coming</span></div>
   <div class="grid2" style="gap:18px"><div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg id="lunwheel" viewBox="0 0 260 260" width="100%" style="max-width:260px"></svg><p class="note" style="text-align:center">Day ${Math.round(U.age)} of 29.5 · ${Math.round(U.illum * 100)}% lit · ${U.km.toLocaleString("en-GB")} km away</p></div>
   <div><p class="eyebrow">Current phase</p><h3>${U.phase} · <em>${ph[0]}</em></h3><p>${ph[1]}</p><p class="note">This cycle began with the New Moon of ${dt(U.start.date)} at ${E.fmtLon(U.start.lon)} (your house ${E.houseOf(U.start.lon, natal.houses.cusps)}). Whatever you seeded then is what this cycle is about.</p>
   <p><span class="chip sky">your natal phase: ${U.natalPhase}</span></p><p class="note">Born in the ${U.natalPhase} phase: ${LL.natal[U.natalPhase]}.</p>${U.lunarReturn ? `<p class="note">Next lunar return (Moon back to its birth position, your monthly emotional reset): ${dt(U.lunarReturn)}.</p>` : ""}</div></div>
@@ -311,13 +321,14 @@ ${M.lun ? (() => { const U = M.lun, LL = L.lunar, df = o => new Intl.DateTimeFor
   <h3 style="font-style:italic">Next eclipses</h3><ul class="rows">${U.eclipses.map(x => `<li><span class="t">${dt(x.date)}</span><span><b>${x.type[0].toUpperCase() + x.type.slice(1)} eclipse</b> at ${E.fmtLon(x.lon)}${x.type.startsWith("solar") ? (x.local ? ` · ${x.local}% covered from ${esc(M.home.name)}` : ` · not visible from ${esc(M.home.name)}`) : ""}<br><span class="note">${hits(x.hits)}</span></span></li>`).join("")}</ul>
   ${blue.length ? `<p class="note">Blue moon (second full Moon in a month): ${blue.map(dt).join(", ")}.</p>` : ""}
   <p class="note"><b>Evidence check.</b> ${LL.evidence}</p></section>`; })() : ""}
-<p style="text-align:center"><button class="ghost" id="toSimple">Show the simple version</button></p>
 <div class="orn">✦</div>
-<footer>
+<footer data-deep="about">
   <p><b>Calculated</b> on this phone with Astronomy Engine (positions within about 0.01° of the Swiss Ephemeris). Planet positions, gates, aspects, numbers and pillars are exact arithmetic.</p>
   <p><b>Interpreted:</b> none of these systems has shown predictive power in controlled tests. Use them as a structured prompt for attention.</p>
 </footer>`;
-    drawWheel(M); drawBodygraph(M); drawHex(tri); drawMoon(M.moon); if (M.lun) drawLunar(M.lun); const ts = $("#toSimple"); if (ts) ts.onclick = () => { profile.mode = "simple"; save(profile); render(); scrollTo({ top: 0 }); }; drawTimeline(M, isToday); drawMandala();
+    drawWheel(M); drawBodygraph(M); drawHex(tri); drawMoon(M.moon); if (M.lun) drawLunar(M.lun); drawTimeline(M, isToday); drawMandala();
+    bindSwitch();
+    if (profile.mode === "simple") { const nodes = {}; $("#app").querySelectorAll("[data-deep]").forEach(n => (nodes[n.dataset.deep] ||= []).push(n)); Object.values(nodes).flat().forEach(n => n.remove()); renderSimple(M, nodes); }
   }
 
   function drawLunar(U) {
