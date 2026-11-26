@@ -115,9 +115,9 @@
   // ---------- Simple view: plain language ----------
   function modeSwitch() { const s = profile.mode === "simple"; return `<div class="modesw" role="group" aria-label="Reading depth"><button data-m="simple" aria-pressed="${s}">Essential</button><button data-m="full" aria-pressed="${!s}">Deeper</button></div>`; }
   function bindSwitch() { document.querySelectorAll(".modesw button").forEach(b => b.onclick = () => { if (profile.mode === b.dataset.m) return; profile.mode = b.dataset.m; save(profile); render(); scrollTo({ top: 0 }); }); }
-  const DEEP_LABEL = { good: "the signals behind this", times: "the Moon's path and planetary hours", moon: "Moon cycles and eclipses", number: "numbers, Four Pillars and I Ching", week: "chart wheel and aspects", about: "your Human Design body map" };
-  function renderSimple(M, nodes = {}) {
-    const deep = k => nodes[k] ? `<div class="deepwrap"><button class="godeep" data-k="${k}" aria-expanded="false">Go deeper <span class="note">· ${DEEP_LABEL[k]}</span> <span class="chev">›</span></button><div class="deeper" data-for="${k}" hidden></div></div>` : "";
+  const DEEP_LABEL = { good: "the signals behind this", times: "hour by hour", moon: "the Moon's cycle", number: "all the numbers", week: "your chart", about: "your full design" };
+  function renderSimple(M) {
+    const deep = k => `<div class="deepwrap"><button class="godeep" data-k="${k}">Go deeper <span class="note">· ${DEEP_LABEL[k]}</span> <span class="chev">›</span></button></div>`;
     const S = L.simple, U = M.lun;
     const tf = (d, o) => new Intl.DateTimeFormat("en-GB", Object.assign({ timeZone: profile.tz }, o)).format(d);
     const hm = d => tf(d, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
@@ -128,17 +128,17 @@
     // good-for list: what to do, concretely, and why today
     const cap = x => x ? x[0].toUpperCase() + x.slice(1) : "";
     const andList = xs => xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs.at(-1);
-    const why = t => { const sy = M.systemsPer(t).map(x => S.sysPlain[x] || x); return sy.length ? `<span class="note">Why today: ${sy.length > 1 ? `${andList(sy)} all point this way.` : `mainly ${sy[0]}.`}</span>` : ""; };
+    const why = t => { const n = M.systemsPer(t).length; return `<span class="note">${n >= 3 ? "The strongest message of the day." : n === 2 ? "A clear message today." : "A quieter hint."}</span>`; };
     const hardish = (p, asp) => ["square", "opposite"].includes(asp) || (asp === "conjunct" && ["Saturn", "Mars", "Pluto", "Uranus", "Neptune"].includes(p));
     const good = [`${esc(S.themeDo[T1])} ${why(T1)}`];
     if (T2) good.push(`${esc(S.themeDo[T2])} ${why(T2)}`);
-    if (S.gods[M.god]) good.push(`It's also a good day for <b>${S.gods[M.god]}</b>. <span class="note">That one comes from the Chinese calendar.</span>`);
+    if (S.gods[M.god]) good.push(`It's also a good day for <b>${S.gods[M.god]}</b>.`);
     const soft = M.asp.filter(a => a.t !== "Moon" && ["trine", "sextile"].includes(a.aspect) && S.softPlanet[a.t]).slice(0, 1);
-    soft.forEach(a => good.push(`${S.softPlanet[a.t]} <span class="note">${a.t === "NNode" ? "Your life path" : a.t} is supporting ${S.points[a.n] || nm(a.n)}.</span>`));
+    soft.forEach(a => good.push(`${S.softPlanet[a.t]}`));
     // go-easy list
     const easy = [];
-    const seenP = new Set(); M.asp.filter(a => a.t !== "Moon" && ["square", "opposite"].includes(a.aspect) && S.hardPlanet[a.t] && !seenP.has(a.t) && seenP.add(a.t)).slice(0, 2).forEach(a => easy.push(`<b>${S.hardPlanet[a.t][0]}</b> ${S.hardPlanet[a.t][1]} <span class="note">${a.t === "NNode" ? "Your life path" : a.t} is putting pressure on ${S.points[a.n] || nm(a.n)}.</span>`));
-    if (M.rel === "Clash" || M.rel === "Harm") easy.push(`<b>Arguments with someone close.</b> The Chinese calendar marks today as a friction day for you, so small things can blow up. Listen first, answer later.`);
+    const seenP = new Set(); M.asp.filter(a => a.t !== "Moon" && ["square", "opposite"].includes(a.aspect) && S.hardPlanet[a.t] && !seenP.has(a.t) && seenP.add(a.t)).slice(0, 2).forEach(a => easy.push(`<b>${S.hardPlanet[a.t][0]}</b> ${S.hardPlanet[a.t][1]} <span class="note">It mostly touches ${S.points[a.n] || nm(a.n)}.</span>`));
+    if (M.rel === "Clash" || M.rel === "Harm") easy.push(`<b>Arguments with someone close.</b> Today has a little friction in it for you, so small things can blow up. Listen first, answer later.`);
     if (M.newCenters.includes("SolarPlexus")) easy.push(`<b>Big decisions in the heat of the moment.</b> Your feelings run in waves for a few days, so what feels certain tonight may look different tomorrow. Sleep on it.`);
     { const g = S.themeGuard[T1]; const i = g.indexOf(". "); easy.push(i > 0 ? `<b>${esc(g.slice(0, i + 1))}</b> ${esc(g.slice(i + 2))}` : esc(g)); }
     // best times
@@ -198,14 +198,14 @@ ${deep("about")}
 <p class="note" style="text-align:center;margin:6px 0 0">Based on astrology, numerology, Human Design and the Chinese calendar, calculated for your birth chart. Treat it as a gentle nudge, not a prediction.</p>
 <div class="orn">✦</div>`;
     drawMoon(M.moon); drawMandala(); bindSwitch();
-    app.querySelectorAll(".deeper").forEach(d => (nodes[d.dataset.for] || []).forEach(n => d.appendChild(n)));
-    app.querySelectorAll(".godeep").forEach(b => b.onclick = () => { const d = b.nextElementSibling, open = d.hidden; d.hidden = !open; b.setAttribute("aria-expanded", open); if (!open) b.scrollIntoView({ block: "nearest" }); });
+    app.querySelectorAll(".godeep").forEach(b => b.onclick = () => { profile.mode = "full"; save(profile); render(); const t = document.querySelector(`[data-deep="${b.dataset.k}"]`); if (t) t.scrollIntoView({ block: "start" }); });
   }
 
   function render() {
     const M = dayModel(...sel);
     $("#dlabel").textContent = fmtDate(M.y, M.m, M.d, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
     $("#datepick").value = `${M.y}-${String(M.m).padStart(2, "0")}-${String(M.d).padStart(2, "0")}`;
+    if (profile.mode === "simple") return renderSimple(M);
     const T1 = M.ranked[0] ? L.themes[M.ranked[0][0]] : L.themes.Reflection, T2 = M.ranked[1] ? L.themes[M.ranked[1][0]] : null;
     const topCaution = M.cautions[0];
     const typeInfo = L.types[natal.type] || ["", ""];
@@ -332,7 +332,6 @@ ${M.lun ? (() => { const U = M.lun, LL = L.lunar, df = o => new Intl.DateTimeFor
 </footer>`;
     drawWheel(M); drawBodygraph(M); drawHex(tri); drawMoon(M.moon); if (M.lun) drawLunar(M.lun); drawTimeline(M, isToday); drawMandala();
     bindSwitch();
-    if (profile.mode === "simple") { const nodes = {}; $("#app").querySelectorAll("[data-deep]").forEach(n => (nodes[n.dataset.deep] ||= []).push(n)); Object.values(nodes).flat().forEach(n => n.remove()); renderSimple(M, nodes); }
   }
 
   function drawLunar(U) {
