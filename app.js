@@ -125,18 +125,22 @@
     const T1 = M.ranked[0]?.[0] || "Reflection", T2 = M.ranked[1]?.[0];
     const sign = l => E.SIGNS[Math.floor(E.norm(l) / 30)];
     const moonSignIdx = Math.floor(E.norm(M.tr.Moon.lon) / 30);
-    // good-for list
-    const good = [`<b>${esc(L.themes[T1].lean.replace(/:.*/, "").replace(/\.$/, ""))}.</b>`];
-    if (T2) good.push(esc(L.themes[T2].lean));
-    if (S.gods[M.god]) good.push(`It's also a good day for <b>${S.gods[M.god]}</b>.`);
-    const soft = M.asp.filter(a => a.t !== "Moon" && ["trine", "sextile"].includes(a.aspect)).slice(0, 1);
-    soft.forEach(a => good.push(`${S.planets[a.t] ? S.planets[a.t][0].toUpperCase() + S.planets[a.t].slice(1) : a.t} gives ${S.tone[a.aspect][0]} ${S.points[a.n] || a.n}.`));
+    // good-for list: what to do, concretely, and why today
+    const cap = x => x ? x[0].toUpperCase() + x.slice(1) : "";
+    const andList = xs => xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs.at(-1);
+    const why = t => { const sy = M.systemsPer(t).map(x => S.sysPlain[x] || x); return sy.length ? `<span class="note">Why today: ${sy.length > 1 ? `${andList(sy)} all point this way.` : `mainly ${sy[0]}.`}</span>` : ""; };
+    const hardish = (p, asp) => ["square", "opposite"].includes(asp) || (asp === "conjunct" && ["Saturn", "Mars", "Pluto", "Uranus", "Neptune"].includes(p));
+    const good = [`${esc(S.themeDo[T1])} ${why(T1)}`];
+    if (T2) good.push(`${esc(S.themeDo[T2])} ${why(T2)}`);
+    if (S.gods[M.god]) good.push(`It's also a good day for <b>${S.gods[M.god]}</b>. <span class="note">That one comes from the Chinese calendar.</span>`);
+    const soft = M.asp.filter(a => a.t !== "Moon" && ["trine", "sextile"].includes(a.aspect) && S.softPlanet[a.t]).slice(0, 1);
+    soft.forEach(a => good.push(`${S.softPlanet[a.t]} <span class="note">${a.t === "NNode" ? "Your life path" : a.t} is supporting ${S.points[a.n] || nm(a.n)}.</span>`));
     // go-easy list
     const easy = [];
-    const seenP = new Set(); M.asp.filter(a => a.t !== "Moon" && ["square", "opposite"].includes(a.aspect) && !seenP.has(a.t) && seenP.add(a.t)).slice(0, 2).forEach(a => easy.push(`<b>${esc(L.planets[a.t][2][0].toUpperCase() + L.planets[a.t][2].slice(1))}.</b> <span class="note">${S.planets[a.t] ? S.planets[a.t][0].toUpperCase() + S.planets[a.t].slice(1) : a.t} is putting ${S.tone[a.aspect][0].replace(/^some |^a /, "")} ${S.points[a.n] || a.n}.</span>`));
-    if (M.rel === "Clash" || M.rel === "Harm") easy.push(`<b>Arguments with someone close.</b> <span class="note">The Chinese calendar marks today as a friction day for you. Listen first.</span>`);
-    if (M.newCenters.includes("SolarPlexus")) easy.push(`<b>Big decisions in the heat of the moment.</b> <span class="note">Feelings run in waves for a few days. Sleep on it.</span>`);
-    easy.push(esc(L.themes[T1].guard));
+    const seenP = new Set(); M.asp.filter(a => a.t !== "Moon" && ["square", "opposite"].includes(a.aspect) && S.hardPlanet[a.t] && !seenP.has(a.t) && seenP.add(a.t)).slice(0, 2).forEach(a => easy.push(`<b>${S.hardPlanet[a.t][0]}</b> ${S.hardPlanet[a.t][1]} <span class="note">${a.t === "NNode" ? "Your life path" : a.t} is putting pressure on ${S.points[a.n] || nm(a.n)}.</span>`));
+    if (M.rel === "Clash" || M.rel === "Harm") easy.push(`<b>Arguments with someone close.</b> The Chinese calendar marks today as a friction day for you, so small things can blow up. Listen first, answer later.`);
+    if (M.newCenters.includes("SolarPlexus")) easy.push(`<b>Big decisions in the heat of the moment.</b> Your feelings run in waves for a few days, so what feels certain tonight may look different tomorrow. Sleep on it.`);
+    { const g = S.themeGuard[T1]; const i = g.indexOf(". "); easy.push(i > 0 ? `<b>${esc(g.slice(0, i + 1))}</b> ${esc(g.slice(i + 2))}` : esc(g)); }
     // best times
     const times = [];
     M.contacts.filter(c => !c.txt.startsWith("Moon meets")).slice(0, 4).forEach(c => {
@@ -150,7 +154,7 @@
     const ph = U ? U.phase : null;
     const nextBig = U ? U.next.slice(0, 2) : [];
     // upcoming week
-    const week = M.upcoming.filter(u => u.date - M.start < 8 * 86400e3).slice(0, 5).map(u => `<li><span class="t">${tf(u.date, { weekday: "short", day: "numeric", month: "short" })}</span><span>${(() => { const pt = S.points[u.n] || nm(u.n); return pt[0].toUpperCase() + pt.slice(1); })()} ${S.toneNoun[u.aspect]} ${S.planets[u.t] || u.t}.</span></li>`).join("");
+    const week = M.upcoming.filter(u => u.date - M.start < 8 * 86400e3).slice(0, 5).map(u => { const pt = cap(S.points[u.n] || nm(u.n)); const h = hardish(u.t, u.aspect); const txt = h ? (S.hardPlanet[u.t] ? `watch for ${S.hardPlanet[u.t][0].toLowerCase().replace(/\.$/, "")}. ${S.hardPlanet[u.t][1]}` : "a tense day.") : (S.softPlanet[u.t] || "a helpful day."); return `<li><span class="t">${tf(u.date, { weekday: "short", day: "numeric", month: "short" })}</span><span><b>${esc(pt)}:</b> ${txt}</span></li>`; }).join("");
     const app = $("#app");
     app.innerHTML = `
 ${modeSwitch()}

@@ -88,4 +88,50 @@ const LORE = {
   gateTheme: { 14: "Resources", 21: "Resources", 26: "Resources", 45: "Resources", 40: "Resources", 54: "Resources", 8: "Expression", 12: "Expression", 16: "Expression", 35: "Change", 3: "Change", 49: "Change", 37: "Connection", 59: "Connection", 6: "Connection", 52: "Reflection", 61: "Reflection", 64: "Reflection", 60: "Structure", 15: "Structure", 7: "Structure", 9: "Structure" },
   centerMeaning: { Head: "mental pressure and questions", Ajna: "thinking and certainty", Throat: "speaking and doing", G: "identity and direction", Heart: "willpower and self-worth", Sacral: "life-force and work energy", SolarPlexus: "emotions and moods", Spleen: "instinct, health and timing", Root: "pressure and adrenaline" }
 };
+/* Essential mode: concrete, plain-language advice (what to do, and why today). */
+Object.assign(LORE.simple, {
+  themeDo: {
+    Action: "Put your energy into something you've already committed to: finish a task you started, train, or move a project one real step forward. It's a better day for doing than for planning.",
+    Resources: "A good day for money matters: check your budget, send or chase an invoice, compare prices, or prepare a negotiation. Clear numbers today save stress later.",
+    Connection: "Reach out to someone who matters: call a friend, fix a small misunderstanding, or plan time together. People are more open than usual.",
+    Expression: "Say it or write it: send the email you've been putting off, pitch an idea, post something, or have the conversation you've been rehearsing.",
+    Structure: "Get organised: make a plan for the week, tidy one area, and follow through on a promise you've already made. Steady, careful work pays off today.",
+    Change: "Change something small: take a new route, try a new place or method, or drop a habit that has gone stale. A little novelty gives you energy today.",
+    Reflection: "Give yourself quiet time: journal, read, take a walk alone, or simply rest. Answers come more easily when you stop pushing."
+  },
+  themeGuard: {
+    Action: "Forcing things nobody asked for. If you have to push hard to make something happen today, it's probably not the right thing yet.",
+    Resources: "Promising more than you can deliver. If someone asks for a favour, a discount or a deadline, give yourself a buffer before you say yes.",
+    Connection: "Taking on other people's moods. If someone around you is upset, be kind, but remember their bad day isn't yours to carry.",
+    Expression: "Talking yourself into a decision. Saying something out loud doesn't make it right; check whether your gut actually agrees.",
+    Structure: "Being too hard on yourself or others. Aim for done and decent rather than perfect.",
+    Change: "Burning bridges on impulse. Change the small things freely, but sleep on anything you can't undo, like quitting or ending something.",
+    Reflection: "Hiding in the fog. Rest is good, but don't use it to avoid a decision that needs making."
+  },
+  hardPlanet: {
+    Sun: ["Ego clashes.", "You may feel a need to prove yourself. Let a small thing go instead of winning the point."],
+    Mercury: ["Misunderstandings.", "Messages can go sideways. Re-read before you send, and confirm times and details."],
+    Venus: ["Overspending or people-pleasing.", "It's easy to say yes to treats or to others' wishes. Wait a day before buying or agreeing to anything big."],
+    Mars: ["Rushing and irritability.", "You may be short-tempered or hurried. Slow down on the road and count to ten before replying."],
+    Jupiter: ["Overdoing it.", "Everything looks possible, so you may take on too much. Pick one thing and do it well."],
+    Saturn: ["Heaviness and self-criticism.", "Things can feel slow or blocked. Don't judge your whole life by one tired day."],
+    Uranus: ["Sudden decisions.", "You may feel restless and want to shake everything up. Change something small instead of something big."],
+    Neptune: ["Confusion and wishful thinking.", "Things may look rosier or vaguer than they are. Check the facts before you trust a promise."],
+    Pluto: ["Power struggles.", "Someone may want control, or you might. Notice it and step out of the tug-of-war."],
+    NNode: ["Following the crowd.", "Don't do something just because everyone else is. Ask whether it's really your direction."]
+  },
+  softPlanet: {
+    Sun: "You come across well today, so it's a good moment to show your work or speak up.",
+    Mercury: "Your thinking is clear, so it's a good time for paperwork, learning or an important conversation.",
+    Venus: "Charm comes easily, so it's a good time for a date, a gift, or smoothing things over.",
+    Mars: "You have extra energy, so use it for exercise or a task you've been putting off.",
+    Jupiter: "Luck is on your side, so ask for what you want: a favour, a raise, or an opportunity.",
+    Saturn: "Patience and focus come easily, so it's a good day for serious work that needs care.",
+    Uranus: "Fresh ideas come easily, so try the unusual solution.",
+    Neptune: "Your intuition and imagination are strong, so it's a good day for art, music or a quiet hunch.",
+    Pluto: "You can see beneath the surface, so it's a good day for an honest, deep conversation.",
+    NNode: "Small steps toward your bigger goals count double today."
+  },
+  sysPlain: { "Astrology": "the planets", "Human Design": "your energy map", "Numerology": "your number for the day", "BaZi": "the Chinese calendar", "I Ching": "the I Ching", "Moon": "the Moon" }
+});
 if (typeof module === "object") module.exports = LORE;
