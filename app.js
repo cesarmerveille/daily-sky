@@ -111,8 +111,87 @@
   const fmtDate = (y, m, d, opts) => new Intl.DateTimeFormat("en-GB", Object.assign({ timeZone: "UTC" }, opts)).format(new Date(Date.UTC(y, m - 1, d, 12)));
   const minToHM = mi => `${String(Math.floor(mi / 60) % 24).padStart(2, "0")}:${String(mi % 60).padStart(2, "0")}`;
 
+  // ---------- Simple view: plain language ----------
+  function renderSimple(M) {
+    const S = L.simple, U = M.lun;
+    const tf = (d, o) => new Intl.DateTimeFormat("en-GB", Object.assign({ timeZone: profile.tz }, o)).format(d);
+    const hm = d => tf(d, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    const isToday = (() => { const t = ymdIn(profile.tz); return t[0] === M.y && t[1] === M.m && t[2] === M.d; })();
+    const T1 = M.ranked[0]?.[0] || "Reflection", T2 = M.ranked[1]?.[0];
+    const sign = l => E.SIGNS[Math.floor(E.norm(l) / 30)];
+    const moonSignIdx = Math.floor(E.norm(M.tr.Moon.lon) / 30);
+    // good-for list
+    const good = [`<b>${esc(L.themes[T1].lean.replace(/:.*/, "").replace(/\.$/, ""))}.</b>`];
+    if (T2) good.push(esc(L.themes[T2].lean));
+    if (S.gods[M.god]) good.push(`It's also a good day for <b>${S.gods[M.god]}</b>.`);
+    const soft = M.asp.filter(a => a.t !== "Moon" && ["trine", "sextile"].includes(a.aspect)).slice(0, 1);
+    soft.forEach(a => good.push(`${S.planets[a.t] ? S.planets[a.t][0].toUpperCase() + S.planets[a.t].slice(1) : a.t} gives ${S.tone[a.aspect][0]} ${S.points[a.n] || a.n}.`));
+    // go-easy list
+    const easy = [];
+    const seenP = new Set(); M.asp.filter(a => a.t !== "Moon" && ["square", "opposite"].includes(a.aspect) && !seenP.has(a.t) && seenP.add(a.t)).slice(0, 2).forEach(a => easy.push(`<b>${esc(L.planets[a.t][2][0].toUpperCase() + L.planets[a.t][2].slice(1))}.</b> <span class="note">${S.planets[a.t] ? S.planets[a.t][0].toUpperCase() + S.planets[a.t].slice(1) : a.t} is putting ${S.tone[a.aspect][0].replace(/^some |^a /, "")} ${S.points[a.n] || a.n}.</span>`));
+    if (M.rel === "Clash" || M.rel === "Harm") easy.push(`<b>Arguments with someone close.</b> <span class="note">The Chinese calendar marks today as a friction day for you. Listen first.</span>`);
+    if (M.newCenters.includes("SolarPlexus")) easy.push(`<b>Big decisions in the heat of the moment.</b> <span class="note">Feelings run in waves for a few days. Sleep on it.</span>`);
+    easy.push(esc(L.themes[T1].guard));
+    // best times
+    const times = [];
+    M.contacts.filter(c => !c.txt.startsWith("Moon meets")).slice(0, 4).forEach(c => {
+      const m = c.txt.match(/Moon (\w+) your (.+)/); if (!m) return;
+      const key = Object.keys(S.points).find(k => nm(k) === m[2]) || m[2];
+      if (c.min < 360 || c.min > 1380) return; times.push([minToHM(c.min), c.hard ? `A touchy moment around ${S.doing[key] || m[2]}. Take a breath.` : `A smooth moment for ${S.doing[key] || m[2]}.`, c.hard]);
+    });
+    if (M.ph) { const seen = new Set(); M.ph.hours.filter(h => h.day && ["Venus", "Mercury", "Jupiter"].includes(h.planet)).forEach(h => { if (seen.has(h.planet)) return; seen.add(h.planet); times.push([hm(h.start), `Good hour for ${S.hours[h.planet]}.`, false]); }); }
+    times.sort((a, b) => a[0].localeCompare(b[0]));
+    // moon
+    const ph = U ? U.phase : null;
+    const nextBig = U ? U.next.slice(0, 2) : [];
+    // upcoming week
+    const week = M.upcoming.filter(u => u.date - M.start < 8 * 86400e3).slice(0, 5).map(u => `<li><span class="t">${tf(u.date, { weekday: "short", day: "numeric", month: "short" })}</span><span>${(() => { const pt = S.points[u.n] || nm(u.n); return pt[0].toUpperCase() + pt.slice(1); })()} ${S.toneNoun[u.aspect]} ${S.planets[u.t] || u.t}.</span></li>`).join("");
+    const app = $("#app");
+    app.innerHTML = `
+<header class="hero">
+  <svg class="mandala" viewBox="0 0 480 480" aria-hidden="true"><g id="mand"></g></svg>
+  <div>
+    <div class="eyebrow">✦ Your day · ${esc(profile.name)} ✦</div>
+    <h1 style="margin-top:10px">${esc(S.themes[T1][0].toUpperCase() + S.themes[T1].slice(1))}${T2 ? `, <em>with room for ${esc(L.themes[T2].label.toLowerCase())}</em>` : ""}.</h1>
+    <p class="lede">Your number today is ${M.num.personalDay}: ${esc(L.numerology[M.num.personalDay].split(".")[0].toLowerCase())}. The Moon is in ${E.SIGNS[moonSignIdx]}, so expect ${esc(S.moonMood[moonSignIdx])}.${isToday ? "" : `<br><span class="note">You're looking at ${fmtDate(M.y, M.m, M.d, { weekday: "long", day: "numeric", month: "long" })}.</span>`}</p>
+  </div>
+</header>
+<section class="grid2">
+  <div class="panel"><div class="head"><h2>Good for</h2><span class="eyebrow">today</span></div><ul class="list lean">${good.map(x => `<li><span>${x}</span></li>`).join("")}</ul></div>
+  <div class="panel"><div class="head"><h2>Go easy on</h2><span class="eyebrow">today</span></div><ul class="list guard">${easy.slice(0, 3).map(x => `<li><span>${x}</span></li>`).join("")}</ul></div>
+</section>
+${times.length ? `<section class="panel"><div class="head"><h2>Moments to notice</h2><span class="eyebrow">${esc(M.home.name)} time</span></div>
+  <ul class="rows">${times.map(([t, x, hard]) => `<li><span class="t">${t}</span><span>${hard ? "<b>" : ""}${x}${hard ? "</b>" : ""}</span></li>`).join("")}</ul></section>` : ""}
+<section class="grid2">
+  <div class="panel"><div class="head"><h2>The Moon</h2><span class="eyebrow">${ph ? esc(ph) : ""}</span></div>
+    <div style="display:flex;gap:18px;align-items:center"><svg id="moon" width="86" height="86" viewBox="0 0 100 100"></svg><div><h3>${Math.round(M.moon.illum * 100)}% lit</h3><p>${ph ? esc(S.phases[ph]) : ""}</p></div></div>
+    ${nextBig.map(x => `<p class="note"><b>${x.kind === "full" ? "Full Moon" : "New Moon"}</b> ${tf(x.date, { weekday: "short", day: "numeric", month: "short" })}${x.tag === "super" && x.kind === "full" ? " · a supermoon, bigger and brighter than usual" : ""}. ${x.kind === "full" ? "Emotions peak; good for letting go and seeing clearly." : "A fresh start; good for making a wish or setting an intention."}</p>`).join("")}
+  </div>
+  <div class="panel"><div class="head"><h2>Your number</h2><span class="eyebrow">day ${M.num.personalDay}</span></div>
+    <div class="nums"><div class="num key"><span class="v">${M.num.personalDay}</span><span class="k">Today</span></div><div class="num"><span class="v">${M.num.lifePath}</span><span class="k">Your life number</span></div></div>
+    <p>${esc(L.numerology[M.num.personalDay])}</p>
+    <p class="note">Tarot card for today: ${L.tarot[M.num.personalDay]}.</p></div>
+</section>
+${week ? `<section class="panel"><div class="head"><h2>The week ahead</h2></div><ul class="rows">${week}</ul></section>` : ""}
+<section class="panel"><div class="head"><h2>About you</h2><span class="eyebrow">your birth chart in a nutshell</span></div>
+  <ul class="rows">
+    <li><span class="t">Sun · ${sign(natal.positions.Sun.lon)}</span><span>At heart you are ${S.signs[Math.floor(E.norm(natal.positions.Sun.lon) / 30)]}.</span></li>
+    <li><span class="t">Moon · ${sign(natal.positions.Moon.lon)}</span><span>Emotionally you are ${S.signs[Math.floor(E.norm(natal.positions.Moon.lon) / 30)]}.</span></li>
+    <li><span class="t">Rising · ${sign(natal.houses.asc)}</span><span>People first see you as ${S.signs[Math.floor(E.norm(natal.houses.asc) / 30)]}.</span></li>
+    <li><span class="t">Decisions</span><span>${esc(S.types[natal.type] || "")}</span></li>
+  </ul></section>
+<p class="note" style="text-align:center;margin:6px 0 0">Based on astrology, numerology, Human Design and the Chinese calendar, calculated for your birth chart. Treat it as a gentle nudge, not a prediction.</p>
+<p style="text-align:center"><button class="ghost" id="toFull">Show the detailed version</button></p>
+<div class="orn">✦</div>`;
+    drawMoon(M.moon); drawMandala();
+    $("#toFull").onclick = () => { profile.mode = "full"; save(profile); render(); scrollTo({ top: 0 }); };
+  }
+
   function render() {
     const M = dayModel(...sel);
+    $("#dlabel").textContent = fmtDate(M.y, M.m, M.d, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+    $("#datepick").value = `${M.y}-${String(M.m).padStart(2, "0")}-${String(M.d).padStart(2, "0")}`;
+    if (profile.mode === "simple") return renderSimple(M);
     const T1 = M.ranked[0] ? L.themes[M.ranked[0][0]] : L.themes.Reflection, T2 = M.ranked[1] ? L.themes[M.ranked[1][0]] : null;
     const topCaution = M.cautions[0];
     const typeInfo = L.types[natal.type] || ["", ""];
@@ -231,12 +310,13 @@ ${M.lun ? (() => { const U = M.lun, LL = L.lunar, df = o => new Intl.DateTimeFor
   <h3 style="font-style:italic">Next eclipses</h3><ul class="rows">${U.eclipses.map(x => `<li><span class="t">${dt(x.date)}</span><span><b>${x.type[0].toUpperCase() + x.type.slice(1)} eclipse</b> at ${E.fmtLon(x.lon)}${x.type.startsWith("solar") ? (x.local ? ` · ${x.local}% covered from ${esc(M.home.name)}` : ` · not visible from ${esc(M.home.name)}`) : ""}<br><span class="note">${hits(x.hits)}</span></span></li>`).join("")}</ul>
   ${blue.length ? `<p class="note">Blue moon (second full Moon in a month): ${blue.map(dt).join(", ")}.</p>` : ""}
   <p class="note"><b>Evidence check.</b> ${LL.evidence}</p></section>`; })() : ""}
+<p style="text-align:center"><button class="ghost" id="toSimple">Show the simple version</button></p>
 <div class="orn">✦</div>
 <footer>
   <p><b>Calculated</b> on this phone with Astronomy Engine (positions within about 0.01° of the Swiss Ephemeris). Planet positions, gates, aspects, numbers and pillars are exact arithmetic.</p>
   <p><b>Interpreted:</b> none of these systems has shown predictive power in controlled tests. Use them as a structured prompt for attention.</p>
 </footer>`;
-    drawWheel(M); drawBodygraph(M); drawHex(tri); drawMoon(M.moon); if (M.lun) drawLunar(M.lun); drawTimeline(M, isToday); drawMandala();
+    drawWheel(M); drawBodygraph(M); drawHex(tri); drawMoon(M.moon); if (M.lun) drawLunar(M.lun); const ts = $("#toSimple"); if (ts) ts.onclick = () => { profile.mode = "simple"; save(profile); render(); scrollTo({ top: 0 }); }; drawTimeline(M, isToday); drawMandala();
   }
 
   function drawLunar(U) {
@@ -331,13 +411,13 @@ ${M.lun ? (() => { const U = M.lun, LL = L.lunar, df = o => new Intl.DateTimeFor
     sel.innerHTML = `<option value="">Choose a city, or type coordinates below</option>` + CITIES.map((c, i) => `<option value="${i}">${c[0]}</option>`).join("");
     sel.onchange = () => { const c = CITIES[sel.value]; if (c) { $("#f-lat").value = c[1]; $("#f-lon").value = c[2]; $("#f-btz").value = c[3]; } };
     const p = profile || {};
-    $("#f-name").value = p.name || ""; $("#f-date").value = p.date || ""; $("#f-time").value = p.time || ""; $("#f-lat").value = p.lat ?? ""; $("#f-lon").value = p.lon ?? ""; $("#f-btz").value = p.btz || ""; $("#f-tz").value = p.tz || Intl.DateTimeFormat().resolvedOptions().timeZone; $("#f-link").value = p.link || "";
+    $("#f-name").value = p.name || ""; $("#f-date").value = p.date || ""; $("#f-time").value = p.time || ""; $("#f-lat").value = p.lat ?? ""; $("#f-lon").value = p.lon ?? ""; $("#f-btz").value = p.btz || ""; $("#f-tz").value = p.tz || Intl.DateTimeFormat().resolvedOptions().timeZone; $("#f-link").value = p.link || ""; $("#f-mode").value = p.mode || (first ? "simple" : "full");
     $("#cancelSetup").hidden = !!first;
     dlg.showModal();
   }
   $("#setupForm").addEventListener("submit", e => {
     e.preventDefault();
-    const p = { name: $("#f-name").value.trim(), date: $("#f-date").value, time: $("#f-time").value, lat: +$("#f-lat").value, lon: +$("#f-lon").value, btz: $("#f-btz").value.trim(), tz: $("#f-tz").value.trim(), link: $("#f-link").value.trim() };
+    const p = { name: $("#f-name").value.trim(), date: $("#f-date").value, time: $("#f-time").value, lat: +$("#f-lat").value, lon: +$("#f-lon").value, btz: $("#f-btz").value.trim(), tz: $("#f-tz").value.trim(), link: $("#f-link").value.trim(), mode: $("#f-mode").value };
     try { new Intl.DateTimeFormat("en", { timeZone: p.btz }); new Intl.DateTimeFormat("en", { timeZone: p.tz }); } catch (err) { alert("Time zone not recognised. Use a name like Europe/Paris."); return; }
     profile = p; save(p); $("#setup").close(); start();
   });
